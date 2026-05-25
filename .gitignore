@@ -2,5 +2,3 @@ myenv/
 __pycache__/
 *.pyc
 similarity.pkl
-tmdb_5000_movies.csv
-tmdb_5000_credits.csv
