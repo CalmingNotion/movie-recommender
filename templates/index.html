@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- jQuery (Select2 needs it) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div id="spinner" style="display:none;">
+            <div class="loader"></div>
+            <p>Finding movies for you...</p>
+        </div>
+        <h1>🎬 Movie Recommender</h1>
+        <p>Select a movie and we'll find similar ones for you!</p>
+
+        <form method="POST">
+            <select name="movie">
+                {% for movie in movies %}
+                    <option value="{{ movie }}" 
+                    {% if movie == selected_movie %}selected{% endif %}>
+                        {{ movie }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" onclick="showSpinner()">Recommend</button>
+        </form>
+
+        {% if recommended_movies %}
+        <h2>Because you liked {{ selected_movie }}:</h2>
+        <div class="recommendations">
+            {% for i in range(5) %}
+            <div class="movie-card">
+                {% if recommended_posters[i] and recommended_posters[i] != 'N/A' %}
+                    <img src="{{ recommended_posters[i] }}" alt="{{ recommended_movies[i] }}">
+                {% else %}
+                    <div class="no-poster">No Poster</div>
+                {% endif %}
+                <p>{{ recommended_movies[i] }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>    
+    <script>
+        function showSpinner() {
+    document.getElementById('spinner').style.display = 'block';
+    } 
+        $(document).ready(function() {
+            $('select').select2({
+                placeholder: 'Type a movie name...',
+                allowClear: false
+            });
+        });
+    </script>
+</body>
+</html>
