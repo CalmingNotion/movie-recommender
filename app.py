@@ -1,12 +1,75 @@
+import os
 from flask import Flask, render_template, request
 import pickle
 import requests
+import pandas as pd
+import ast
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
 
-# load our saved ML model
-movies = pickle.load(open('movies.pkl', 'rb'))
-similarity = pickle.load(open('similarity.pkl', 'rb'))
+def generate_similarity():
+    movies = pd.read_csv('tmdb_5000_movies.csv')
+    credits = pd.read_csv('tmdb_5000_credits.csv')
+    movies = movies.merge(credits, on='title')
+    movies = movies[['title', 'genres', 'keywords', 'cast', 'crew', 'overview']]
+
+    def convert(obj):
+        L = []
+        for i in ast.literal_eval(obj):
+            L.append(i['name'])
+        return L
+
+    def convert_cast(obj):
+        L = []
+        counter = 0
+        for i in ast.literal_eval(obj):
+            if counter < 3:
+                L.append(i['name'])
+                counter += 1
+            else:
+                break
+        return L
+
+    def convert_crew(obj):
+        L = []
+        for i in ast.literal_eval(obj):
+            if i['job'] == 'Director':
+                L.append(i['name'])
+                break
+        return L
+
+    movies['genres'] = movies['genres'].apply(convert)
+    movies['keywords'] = movies['keywords'].apply(convert)
+    movies['cast'] = movies['cast'].apply(convert_cast)
+    movies['crew'] = movies['crew'].apply(convert_crew)
+    movies['overview'] = movies['overview'].fillna('').apply(lambda x: x.split())
+    movies['cast'] = movies['cast'].apply(lambda x: [i.replace(" ", "") for i in x])
+    movies['crew'] = movies['crew'].apply(lambda x: [i.replace(" ", "") for i in x])
+    movies['genres'] = movies['genres'].apply(lambda x: [i.replace(" ", "") for i in x])
+    movies['keywords'] = movies['keywords'].apply(lambda x: [i.replace(" ", "") for i in x])
+    movies['tags'] = movies['overview'] + movies['genres'] + movies['keywords'] + movies['cast'] + movies['crew']
+    movies = movies[['title', 'tags']]
+    movies['tags'] = movies['tags'].apply(lambda x: " ".join(x))
+    movies['tags'] = movies['tags'].apply(lambda x: x.lower())
+
+    cv = CountVectorizer(max_features=5000, stop_words='english')
+    vectors = cv.fit_transform(movies['tags']).toarray()
+    similarity = cosine_similarity(vectors)
+
+    pickle.dump(movies, open('movies.pkl', 'wb'))
+    pickle.dump(similarity, open('similarity.pkl', 'wb'))
+
+    return movies, similarity
+
+# load or generate model
+if os.path.exists('similarity.pkl'):
+    movies = pickle.load(open('movies.pkl', 'rb'))
+    similarity = pickle.load(open('similarity.pkl', 'rb'))
+else:
+    print('generating similarity matrix...')
+    movies, similarity = generate_similarity()
 
 def fetch_poster(title):
     api_key = '8b18680e'  # replace with your OMDb key
