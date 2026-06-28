@@ -54,25 +54,25 @@ def generate_similarity():
     movies['tags'] = movies['tags'].apply(lambda x: " ".join(x))
     movies['tags'] = movies['tags'].apply(lambda x: x.lower())
 
-    cv = CountVectorizer(max_features=5000, stop_words='english')
-    vectors = cv.fit_transform(movies['tags']).toarray()
-    similarity = cosine_similarity(vectors)
-
+    cv = CountVectorizer(max_features=2000, stop_words='english')
+    global vectors, movies_data
+    vectors = cv.fit_transform(movies['tags'])
+    
     pickle.dump(movies, open('movies.pkl', 'wb'))
-    pickle.dump(similarity, open('similarity.pkl', 'wb'))
-
-    return movies, similarity
+    pickle.dump(vectors, open('vectors.pkl', 'wb'))
+    
+    return movies, vectors
 
 # load or generate model
-if os.path.exists('similarity.pkl'):
+if os.path.exists('vectors.pkl'):
     movies = pickle.load(open('movies.pkl', 'rb'))
-    similarity = pickle.load(open('similarity.pkl', 'rb'))
+    vectors = pickle.load(open('vectors.pkl', 'rb'))
 else:
-    print('generating similarity matrix...')
-    movies, similarity = generate_similarity()
+    print('generating vectors...')
+    movies, vectors = generate_similarity()
 
 def fetch_poster(title):
-    api_key = '8b18680e'  # replace with your OMDb key
+    api_key = os.environ.get('OMDB_API_KEY')
     url = f'http://www.omdbapi.com/?t={title}&apikey={api_key}'
     response = requests.get(url)
     data = response.json()
@@ -80,7 +80,8 @@ def fetch_poster(title):
 
 def recommend(movie):
     movie_index = movies[movies['title'] == movie].index[0]
-    distances = similarity[movie_index]
+    movie_vector = vectors[movie_index]
+    distances = cosine_similarity([movie_vector], vectors)[0]
     movies_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
     
     recommended_movies = []
